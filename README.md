@@ -73,7 +73,7 @@ Add the following to your `claude_desktop_config.json`:
         "windtools-mcp"
       ],
       "env": {
-        "CHROMA_DB_FOLDER_NAME": "my_project",
+        "CHROMA_DB_FOLDER_NAME": "default",
         "SENTENCE_TRANSFORMER_PATH": "Linq-AI-Research/Linq-Embed-Mistral"
       }
     }
@@ -89,8 +89,8 @@ Add the following to your `claude_desktop_config.json`:
     "windtools": {
       "command": "mcp-wintools",
       "env": {
-        "CHROMA_DB_FOLDER_NAME": "my_project",
-        "SENTENCE_TRANSFORMER_PATH": "Linq-AI-Research/Linq-Embed-Mistral"
+        "CHROMA_DB_FOLDER_NAME": "default",
+        "SENTENCE_TRANSFORMER_PATH": "jinaai/jina-embeddings-v2-base-code"
       }
     }
   }
