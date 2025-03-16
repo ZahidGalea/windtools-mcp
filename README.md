@@ -33,7 +33,7 @@ The WindTools MCP Server is built on these key components:
 
 The server can be configured with the following environment variables:
 
-- `DATA_ROOT`: Directorio base donde se almacenarán todos los datos (por defecto: `/app/data`)
+- `DATA_ROOT`: Directorio absoluto donde se almacenarán datos de la base de datos ChromaDB y el caché de modelos.
 - `CHROMA_DB_FOLDER_NAME`: Name of the folder where ChromaDB stores data (default: "default")
 - `SENTENCE_TRANSFORMER_PATH`: Path to the sentence transformer model (default: "jinaai/jina-embeddings-v2-base-code")
 
@@ -48,7 +48,7 @@ pip install windtools-mcp
 #### From source
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/ZahidGalea/windtools-mcp
 cd windtools-mcp
 pip install -e .
 ```
@@ -59,16 +59,20 @@ Add the following to your `claude_desktop_config.json`:
 
 #### Direct Execution
 
+Forcing -p 3.11 ya que chromadb da problemas en versions de python superiores.
+
 ```json
 {
   "mcpServers": {
     "windtools": {
       "command": "uvx",
       "args": [
-        "mcp-wintools"
+        "-p",
+        "3.11",
+        "windtools-mcp"
       ],
       "env": {
-        "DATA_ROOT": "~/windtools_data",
+        "DATA_ROOT": "/Users/<user>/windtools_data", 
         "CHROMA_DB_FOLDER_NAME": "chromadb",
         "SENTENCE_TRANSFORMER_PATH": "jinaai/jina-embeddings-v2-base-code"
       }
@@ -84,7 +88,7 @@ y persistirán entre ejecuciones del contenedor.
 
 ### Requirements
 
-- Python 3.10.13 or higher
+- Python 3.11
 - Dependencies listed in pyproject.toml
 
 ### Development Setup
@@ -96,6 +100,12 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install development dependencies
 uv sync --dev
+```
+
+### Inspector
+
+```bash
+npx @modelcontextprotocol/inspector uvx -p 3.11 windtools-mcp
 ```
 
 ### Running Tests
