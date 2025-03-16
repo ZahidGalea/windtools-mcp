@@ -1,14 +1,28 @@
 [project]
 name = "windtools-mcp"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.0.1"
+description = "A Codebase MCP Tools"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
 readme = "README.md"
 requires-python = ">=3.10.13"
 dependencies = [
+    "mcp>=1.4.1",
     "chromadb>=0.6.3",
-    "mcp[cli]>=1.4.1",
     "sentence-transformers>=3.4.1",
 ]
+
+[[project.authors]]
+name = "ZahidGalea"
+email = "zahidale.zg@gmail.com"
 
 [project.scripts]
 mcp-wintools = "windtools_mcp:main"
@@ -23,5 +37,13 @@ dev-dependencies = [
     "pyright>=1.1.389",
     "pytest>=8.3.3",
     "ruff>=0.8.1",
-    "black>=25.1.0",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

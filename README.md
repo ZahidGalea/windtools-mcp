@@ -63,7 +63,10 @@ Add the following to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "windtools": {
-      "command": "mcp-wintools",
+      "command": "uvx",
+      "args": [
+        "mcp-wintools"
+      ],
       "env": {
         "DATA_ROOT": "~/windtools_data",
         "CHROMA_DB_FOLDER_NAME": "chromadb",

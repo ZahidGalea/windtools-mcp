@@ -4,7 +4,7 @@ import os
 import os.path
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from logging import basicConfig, INFO
+from logging import INFO, basicConfig
 from typing import Any, AsyncIterator, Dict, List
 
 from mcp.server.fastmcp import FastMCP
