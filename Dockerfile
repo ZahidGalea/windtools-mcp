@@ -29,7 +29,9 @@ WORKDIR /app
 COPY --from=uv /root/.local /root/.local
 COPY --from=uv --chown=app:app /app/.venv /app/.venv
 
-# Place executables in the environment at the front of the path
+RUN mkdir -p /app/data
+VOLUME /app/data
+
 ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT ["mcp-wintools"]

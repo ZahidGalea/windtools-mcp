@@ -32,8 +32,9 @@ The WindTools MCP Server is built on these key components:
 
 The server can be configured with the following environment variables:
 
+- `DATA_ROOT`: Directorio base donde se almacenarán todos los datos (por defecto: `/app/data`)
 - `CHROMA_DB_FOLDER_NAME`: Name of the folder where ChromaDB stores data (default: "default")
-- `SENTENCE_TRANSFORMER_PATH`: Path to the sentence transformer model (default: "Linq-AI-Research/Linq-Embed-Mistral")
+- `SENTENCE_TRANSFORMER_PATH`: Path to the sentence transformer model (default: "jinaai/jina-embeddings-v2-base-code")
 
 ### Installation
 
@@ -55,7 +56,7 @@ pip install -e .
 
 Add the following to your `claude_desktop_config.json`:
 
-#### Docker
+#### Docker with Persistent Data
 
 ```json
 {
@@ -66,6 +67,10 @@ Add the following to your `claude_desktop_config.json`:
         "run",
         "--rm",
         "-i",
+        "-v", 
+        "~/windtools_data:/app/data",
+        "-e",
+        "DATA_ROOT",
         "-e",
         "CHROMA_DB_FOLDER_NAME",
         "-e",
@@ -73,7 +78,8 @@ Add the following to your `claude_desktop_config.json`:
         "windtools-mcp"
       ],
       "env": {
-        "CHROMA_DB_FOLDER_NAME": "default",
+        "DATA_ROOT": "/app/data",
+        "CHROMA_DB_FOLDER_NAME": "chromadb",
         "SENTENCE_TRANSFORMER_PATH": "jinaai/jina-embeddings-v2-base-code"
       }
     }
@@ -89,7 +95,8 @@ Add the following to your `claude_desktop_config.json`:
     "windtools": {
       "command": "mcp-wintools",
       "env": {
-        "CHROMA_DB_FOLDER_NAME": "default",
+        "DATA_ROOT": "./data",
+        "CHROMA_DB_FOLDER_NAME": "chromadb",
         "SENTENCE_TRANSFORMER_PATH": "jinaai/jina-embeddings-v2-base-code"
       }
     }
@@ -104,6 +111,27 @@ Docker build:
 ```bash
 docker build -t windtools-mcp .
 ```
+
+## Running Docker with Persistent Data
+
+Para ejecutar el contenedor con persistencia de datos:
+
+```bash
+# Crea un directorio para los datos persistentes
+mkdir -p ~/windtools_data
+
+# Ejecuta el contenedor mapeando el volumen
+docker run --rm -i \
+  -v ~/windtools_data:/app/data \
+  -e DATA_ROOT=/app/data \
+  -e CHROMA_DB_FOLDER_NAME=chromadb \
+  -e SENTENCE_TRANSFORMER_PATH=jinaai/jina-embeddings-v2-base-code \
+  windtools-mcp
+```
+
+docker run --rm -i -v ~/windtools_data:/app/data -e DATA_ROOT -e CHROMA_DB_FOLDER_NAME -e SENTENCE_TRANSFORMER_PATH windtools-mcp
+
+Los datos (incluyendo la base de datos ChromaDB y el caché de modelos) se guardarán en el directorio `~/windtools_data` y persistirán entre ejecuciones del contenedor.
 
 ## Development
 
