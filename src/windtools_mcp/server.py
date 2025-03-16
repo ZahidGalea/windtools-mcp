@@ -29,7 +29,7 @@ class ServerContext:
     chroma_client: Any
     code_collection: Any
     embedding_model: str
-    # Un único directorio de trabajo para el codebase
+
     working_directory: Optional[str] = None
 
 
@@ -46,17 +46,6 @@ def expand_home(filepath: str) -> str:
             os.path.expanduser("~"), filepath[1:] if filepath != "~" else ""
         )
     return filepath
-
-
-def is_subpath(child_path: str, parent_path: str) -> bool:
-    """
-    Verifica si child_path es un subdirectorio de parent_path
-    """
-    parent = os.path.abspath(parent_path)
-    child = os.path.abspath(child_path)
-
-    # Usamos os.path.commonpath para determinar la ruta común
-    return os.path.commonpath([parent]) == os.path.commonpath([parent, child])
 
 
 def validate_path(path_to_check: str, working_dir: str) -> str:
@@ -114,6 +103,11 @@ def validate_path(path_to_check: str, working_dir: str) -> str:
             return absolute_path
         except FileNotFoundError:
             raise ValueError(f"El directorio padre no existe: {parent_dir}")
+
+def get_working_directory(ctx: Context):
+    if "working_directory" in ctx.request_context.lifespan_context:
+        return ctx.request_context.lifespan_context["working_direcotry"]
+    return "No se ha establecido un directorio de trabajo"
 
 
 @asynccontextmanager
@@ -180,7 +174,6 @@ def set_working_directory(ctx: Context, directory_path: str) -> str:
         Mensaje de éxito o error
     """
     try:
-        server_ctx = ctx.state
 
         # Normalizar y expandir la ruta
         expanded_path = expand_home(directory_path)
@@ -199,7 +192,7 @@ def set_working_directory(ctx: Context, directory_path: str) -> str:
             return f"La ruta no es un directorio: {normalized_path}"
 
         # Almacenar en el contexto del servidor
-        server_ctx.working_directory = normalized_path
+        ctx.request_context.lifespan_context["working_direcotry"] = normalized_path
 
         # También cambiamos el directorio actual como comportamiento adicional
         os.chdir(normalized_path)
@@ -211,21 +204,19 @@ def set_working_directory(ctx: Context, directory_path: str) -> str:
         return f"Error: {str(e)}"
 
 
-@mcp.tool()
-def get_working_directory(ctx: Context) -> str:
+@mcp.resource("config://working_directory")
+def get_working_directory_resource(ctx: Context) -> str:
     """
     Obtiene el directorio de trabajo actual establecido en el contexto del servidor.
 
     Returns:
         Ruta al directorio de trabajo o mensaje indicando que no se ha establecido
     """
-    server_ctx = ctx.state
-    if server_ctx.working_directory:
-        return server_ctx.working_directory
-    return "No se ha establecido un directorio de trabajo. Utiliza set_working_directory primero."
+    return get_working_directory(ctx)
 
 
-@mcp.tool()
+
+@mcp.resource("config://{subdirectory}/list_dir")
 def list_dir(ctx: Context, subdirectory: str = "") -> str:
     """
     Lista el contenido de un subdirectorio dentro del directorio de trabajo.
@@ -238,20 +229,16 @@ def list_dir(ctx: Context, subdirectory: str = "") -> str:
         Listado del directorio como texto
     """
     try:
-        server_ctx = ctx.state
-
-        # Verificar si hay directorio de trabajo configurado
-        if not server_ctx.working_directory:
-            return "No se ha establecido un directorio de trabajo. Utiliza set_working_directory primero."
+        working_directory = get_working_directory(ctx)
 
         # Construir la ruta completa
         if subdirectory:
-            directory_path = os.path.join(server_ctx.working_directory, subdirectory)
+            directory_path = os.path.join(working_directory, subdirectory)
         else:
-            directory_path = server_ctx.working_directory
+            directory_path = working_directory
 
         # Validar la ruta
-        valid_path = validate_path(directory_path, server_ctx.working_directory)
+        valid_path = validate_path(directory_path, working_directory)
 
         if not os.path.exists(valid_path) or not os.path.isdir(valid_path):
             return f"Directorio no encontrado o no es un directorio: {valid_path}"
@@ -285,182 +272,3 @@ def list_dir(ctx: Context, subdirectory: str = "") -> str:
         return f"Error: {str(e)}"
     except Exception as e:
         return f"Error al listar directorio: {str(e)}"
-
-
-@mcp.tool()
-def read_file(ctx: Context, file_path: str) -> str:
-    """
-    Lee el contenido de un archivo dentro del directorio de trabajo.
-
-    Args:
-        file_path: Ruta al archivo, puede ser relativa al directorio de trabajo
-
-    Returns:
-        Contenido del archivo o mensaje de error
-    """
-    try:
-        server_ctx = ctx.state
-
-        # Verificar si hay directorio de trabajo configurado
-        if not server_ctx.working_directory:
-            return "No se ha establecido un directorio de trabajo. Utiliza set_working_directory primero."
-
-        # Construir la ruta completa si es relativa
-        if not os.path.isabs(file_path):
-            full_path = os.path.join(server_ctx.working_directory, file_path)
-        else:
-            full_path = file_path
-
-        # Validar la ruta
-        valid_path = validate_path(full_path, server_ctx.working_directory)
-
-        if not os.path.exists(valid_path):
-            return f"El archivo no existe: {valid_path}"
-
-        if not os.path.isfile(valid_path):
-            return f"La ruta no es un archivo: {valid_path}"
-
-        # Leer el archivo
-        with open(valid_path, 'r', encoding='utf-8') as f:
-            return f.read()
-
-    except ValueError as e:
-        return f"Error: {str(e)}"
-    except UnicodeDecodeError:
-        return f"Error: El archivo no está en formato texto o tiene una codificación no soportada"
-    except Exception as e:
-        return f"Error al leer archivo: {str(e)}"
-
-
-@mcp.tool()
-def write_file(ctx: Context, file_path: str, content: str) -> str:
-    """
-    Escribe contenido en un archivo dentro del directorio de trabajo.
-
-    Args:
-        file_path: Ruta al archivo, puede ser relativa al directorio de trabajo
-        content: Contenido a escribir en el archivo
-
-    Returns:
-        Mensaje de éxito o error
-    """
-    try:
-        server_ctx = ctx.state
-
-        # Verificar si hay directorio de trabajo configurado
-        if not server_ctx.working_directory:
-            return "No se ha establecido un directorio de trabajo. Utiliza set_working_directory primero."
-
-        # Construir la ruta completa si es relativa
-        if not os.path.isabs(file_path):
-            full_path = os.path.join(server_ctx.working_directory, file_path)
-        else:
-            full_path = file_path
-
-        # Validar la ruta
-        valid_path = validate_path(full_path, server_ctx.working_directory)
-
-        # Asegurar que el directorio padre existe
-        parent_dir = os.path.dirname(valid_path)
-        if parent_dir and not os.path.exists(parent_dir):
-            os.makedirs(parent_dir, exist_ok=True)
-            logging.info(f"Created parent directory: {parent_dir}")
-
-        # Escribir el archivo
-        with open(valid_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-
-        return f"Archivo guardado correctamente: {file_path}"
-
-    except ValueError as e:
-        return f"Error: {str(e)}"
-    except Exception as e:
-        return f"Error al escribir archivo: {str(e)}"
-
-
-@mcp.tool()
-def create_directory(ctx: Context, directory_path: str) -> str:
-    """
-    Crea un nuevo directorio dentro del directorio de trabajo.
-
-    Args:
-        directory_path: Ruta al directorio, puede ser relativa al directorio de trabajo
-
-    Returns:
-        Mensaje de éxito o error
-    """
-    try:
-        server_ctx = ctx.state
-
-        # Verificar si hay directorio de trabajo configurado
-        if not server_ctx.working_directory:
-            return "No se ha establecido un directorio de trabajo. Utiliza set_working_directory primero."
-
-        # Construir la ruta completa si es relativa
-        if not os.path.isabs(directory_path):
-            full_path = os.path.join(server_ctx.working_directory, directory_path)
-        else:
-            full_path = directory_path
-
-        # Validar la ruta
-        valid_path = validate_path(full_path, server_ctx.working_directory)
-
-        # Crear el directorio
-        os.makedirs(valid_path, exist_ok=True)
-
-        return f"Directorio creado correctamente: {directory_path}"
-
-    except ValueError as e:
-        return f"Error: {str(e)}"
-    except Exception as e:
-        return f"Error al crear directorio: {str(e)}"
-
-
-@mcp.tool()
-def search_files(ctx: Context, pattern: str, subdirectory: str = "") -> str:
-    """
-    Busca archivos que coincidan con un patrón dentro del directorio de trabajo.
-
-    Args:
-        pattern: Patrón de búsqueda (subcadena del nombre de archivo)
-        subdirectory: Subdirectorio opcional donde buscar
-
-    Returns:
-        Lista de archivos encontrados o mensaje de error
-    """
-    try:
-        server_ctx = ctx.state
-        import glob
-
-        # Verificar si hay directorio de trabajo configurado
-        if not server_ctx.working_directory:
-            return "No se ha establecido un directorio de trabajo. Utiliza set_working_directory primero."
-
-        # Construir la ruta de búsqueda
-        if subdirectory:
-            search_path = os.path.join(server_ctx.working_directory, subdirectory)
-        else:
-            search_path = server_ctx.working_directory
-
-        # Validar la ruta
-        valid_path = validate_path(search_path, server_ctx.working_directory)
-
-        # Realizar la búsqueda
-        results = []
-
-        for root, dirs, files in os.walk(valid_path):
-            for name in files + dirs:
-                if pattern.lower() in name.lower():
-                    rel_path = os.path.relpath(os.path.join(root, name), server_ctx.working_directory)
-                    file_type = "dir" if os.path.isdir(os.path.join(root, name)) else "file"
-                    results.append(f"{rel_path}\t{file_type}")
-
-        if not results:
-            return f"No se encontraron coincidencias para '{pattern}'"
-
-        return "\n".join(results)
-
-    except ValueError as e:
-        return f"Error: {str(e)}"
-    except Exception as e:
-        return f"Error al buscar archivos: {str(e)}"
