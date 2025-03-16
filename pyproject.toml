@@ -28,6 +28,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "VERSION"
+pattern = "__version__ = \"(?P<version>.+)\""
 
 [tool.uv]
 dev-dependencies = [
