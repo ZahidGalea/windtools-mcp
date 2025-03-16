@@ -82,7 +82,8 @@ Using Python 3.11 as ChromaDB has issues with newer Python versions.
 }
 ```
 
-Data (including ChromaDB database and model cache) will be saved in the `/Users/<user>/windtools_data` directory and persist between
+Data (including ChromaDB database and model cache) will be saved in the `/Users/<user>/windtools_data` directory and
+persist between
 container executions.
 
 ## Development
@@ -133,7 +134,11 @@ README.md
 
 ### Release Process
 
-
+```bash
+export release_version="v0.0.6"
+git tag -a $release_version -m "Release ${release_version}"
+git push origin $release_version
+```
 
 ## License
 
