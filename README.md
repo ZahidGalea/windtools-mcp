@@ -135,7 +135,7 @@ README.md
 ### Release Process
 
 ```bash
-export release_version="v0.0.7"
+export release_version="v0.0.8"
 git tag -a $release_version -m "Release ${release_version}"
 git push origin $release_version
 ```
