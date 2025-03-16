@@ -1,5 +1,8 @@
+from .server import mcp
+
+
 def main():
-    print("Hello from windtools-mcp!")
+    mcp.run()
 
 
 if __name__ == "__main__":

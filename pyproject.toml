@@ -5,5 +5,23 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10.13"
 dependencies = [
+    "chromadb>=0.6.3",
     "mcp[cli]>=1.4.1",
+    "sentence-transformers>=3.4.1",
+]
+
+[project.scripts]
+mcp-wintools = "windtools_mcp:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "freezegun>=1.5.1",
+    "pyright>=1.1.389",
+    "pytest>=8.3.3",
+    "ruff>=0.8.1",
+    "black>=25.1.0",
 ]
