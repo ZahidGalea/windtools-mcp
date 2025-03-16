@@ -1,6 +1,5 @@
 import logging
 import os
-
 # Add lifespan support for startup/shutdown with strong typing
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -23,11 +22,12 @@ DATA_FOLDER = os.path.join(os.path.dirname(__file__), "data")
 CHROMA_DB_PATH = os.path.join(DATA_FOLDER, CHROMA_DB_FOLDER_NAME)
 SENTENCE_TRANSFORMER_CACHE_FOLDER = os.path.join(DATA_FOLDER, "embedding_cache")
 
-# Default allowed directories (puede ser configurado por variables de entorno)
-DEFAULT_ALLOWED_DIRECTORIES = os.environ.get("ALLOWED_DIRECTORIES", "").split(",")
-if not DEFAULT_ALLOWED_DIRECTORIES or DEFAULT_ALLOWED_DIRECTORIES == [""]:
-    DEFAULT_ALLOWED_DIRECTORIES = [os.path.expanduser("~")]
-
+# Obtener directorios permitidos de las variables de entorno
+# Si no hay ninguno configurado, la lista estará vacía (ninguno permitido por defecto)
+DEFAULT_ALLOWED_DIRECTORIES = [
+    dir_path for dir_path in os.environ.get("ALLOWED_DIRECTORIES", "").split(",")
+    if dir_path and dir_path.strip()
+]
 
 # Server lifespan context for ChromaDB initialization and project directories
 @dataclass
@@ -40,7 +40,7 @@ class ServerContext:
     allowed_directories: List[str] = field(default_factory=list)
 
 
-# Funciones de utilidad para validar rutas (similar al servidor Node.js)
+# Funciones de utilidad para validar rutas
 def normalize_path(p: str) -> str:
     """Normaliza una ruta para validaciones consistentes"""
     return os.path.normpath(p)
@@ -67,8 +67,14 @@ def validate_path(path_to_check: str, allowed_dirs: List[str]) -> str:
         Ruta normalizada y validada
 
     Raises:
-        ValueError: Si la ruta está fuera de los directorios permitidos
+        ValueError: Si la ruta está fuera de los directorios permitidos o no hay directorios permitidos
     """
+    # Verificar si hay directorios permitidos configurados
+    if not allowed_dirs:
+        raise ValueError(
+            "No hay directorios permitidos configurados. Utiliza add_allowed_directory primero."
+        )
+
     expanded_path = expand_home(path_to_check)
     absolute_path = os.path.abspath(expanded_path)
     normalized_path = normalize_path(absolute_path)
@@ -98,16 +104,19 @@ def validate_path(path_to_check: str, allowed_dirs: List[str]) -> str:
     except FileNotFoundError:
         # Para directorios nuevos que aún no existen, verificar el directorio padre
         parent_dir = os.path.dirname(absolute_path)
-        real_parent = os.path.realpath(parent_dir)
-        normalized_parent = normalize_path(real_parent)
-        is_parent_allowed = any(
-            normalized_parent.startswith(normalize_path(d)) for d in allowed_dirs
-        )
-        if not is_parent_allowed:
-            raise ValueError(
-                "Acceso denegado - directorio padre fuera de directorios permitidos"
+        try:
+            real_parent = os.path.realpath(parent_dir)
+            normalized_parent = normalize_path(real_parent)
+            is_parent_allowed = any(
+                normalized_parent.startswith(normalize_path(d)) for d in allowed_dirs
             )
-        return absolute_path
+            if not is_parent_allowed:
+                raise ValueError(
+                    "Acceso denegado - directorio padre fuera de directorios permitidos"
+                )
+            return absolute_path
+        except FileNotFoundError:
+            raise ValueError(f"El directorio padre no existe: {parent_dir}")
 
 
 @asynccontextmanager
@@ -141,16 +150,20 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[ServerContext]:
         )
         logging.info("Created new code collection")
 
-    # Create the context with normalized allowed directories
+    # Normalizar los directorios permitidos desde la variable de entorno
     allowed_dirs = [
         normalize_path(expand_home(d)) for d in DEFAULT_ALLOWED_DIRECTORIES if d
     ]
-    logging.info(f"Allowed directories: {allowed_dirs}")
+
+    if allowed_dirs:
+        logging.info(f"Directorios permitidos configurados: {allowed_dirs}")
+    else:
+        logging.warning("No hay directorios permitidos configurados. Las operaciones de sistema de archivos estarán restringidas hasta que se agreguen.")
 
     ctx = ServerContext(
         chroma_client=chroma_client,
         code_collection=code_collection,
-        embedding_model="Linq-AI-Research/Linq-Embed-Mistral",
+        embedding_model=SENTENCE_TRANSFORMER_PATH,
         allowed_directories=allowed_dirs,
     )
 
@@ -182,6 +195,10 @@ def set_project_directory(ctx: Context, directory_path: str) -> str:
     """
     try:
         server_ctx = ctx.state
+
+        # Verificar si hay directorios permitidos configurados
+        if not server_ctx.allowed_directories:
+            return "No hay directorios permitidos configurados. Utiliza add_allowed_directory primero."
 
         # Validar que la ruta esté dentro de los directorios permitidos
         valid_path = validate_path(directory_path, server_ctx.allowed_directories)
@@ -235,7 +252,7 @@ def list_allowed_directories(ctx: Context) -> str:
     """
     server_ctx = ctx.state
     if not server_ctx.allowed_directories:
-        return "No hay directorios permitidos configurados."
+        return "No hay directorios permitidos configurados. Utiliza add_allowed_directory para añadir directorios seguros."
 
     return "Directorios permitidos:\n" + "\n".join(server_ctx.allowed_directories)
 
@@ -273,9 +290,57 @@ def add_allowed_directory(ctx: Context, directory_path: str) -> str:
         # Añadir a la lista
         server_ctx.allowed_directories.append(normalized_path)
 
+        # Log para seguridad
+        logging.info(f"Directorio añadido a la lista de permitidos: {normalized_path}")
+
         return f"Directorio añadido a la lista de permitidos: {normalized_path}"
     except Exception as e:
         return f"Error al añadir directorio: {str(e)}"
+
+
+@mcp.tool()
+def remove_allowed_directory(ctx: Context, directory_path: str) -> str:
+    """
+    Elimina un directorio de la lista de directorios permitidos.
+
+    Args:
+        directory_path: Ruta al directorio que se desea eliminar de la lista
+
+    Returns:
+        Mensaje de éxito o error
+    """
+    try:
+        server_ctx = ctx.state
+
+        # Normalizar y expandir la ruta
+        expanded_path = expand_home(directory_path)
+        absolute_path = os.path.abspath(expanded_path)
+        normalized_path = normalize_path(absolute_path)
+
+        # Verificar si está en la lista
+        if normalized_path not in server_ctx.allowed_directories:
+            # Intentar buscar si existe como subcadena
+            matching_dirs = [d for d in server_ctx.allowed_directories if d.startswith(normalized_path) or normalized_path.startswith(d)]
+            if matching_dirs:
+                return f"Directorio no encontrado exactamente, pero existen coincidencias similares: {', '.join(matching_dirs)}"
+            return f"El directorio no está en la lista: {normalized_path}"
+
+        # Si el directorio de trabajo actual está dentro del directorio que se elimina,
+        # resetear el directorio de trabajo actual
+        if (server_ctx.current_working_directory and
+                server_ctx.current_working_directory.startswith(normalized_path)):
+            server_ctx.current_working_directory = None
+            logging.warning(f"Se ha reseteado el directorio de trabajo actual porque estaba dentro de {normalized_path}")
+
+        # Eliminar de la lista
+        server_ctx.allowed_directories.remove(normalized_path)
+
+        # Log para seguridad
+        logging.info(f"Directorio eliminado de la lista de permitidos: {normalized_path}")
+
+        return f"Directorio eliminado de la lista de permitidos: {normalized_path}"
+    except Exception as e:
+        return f"Error al eliminar directorio: {str(e)}"
 
 
 @mcp.tool()
@@ -293,6 +358,10 @@ def list_dir(ctx: Context, directory_path: str = None) -> str:
     """
     try:
         server_ctx = ctx.state
+
+        # Verificar si hay directorios permitidos configurados
+        if not server_ctx.allowed_directories:
+            return "No hay directorios permitidos configurados. Utiliza add_allowed_directory primero."
 
         # Si no se proporciona ruta, usar el directorio actual del proyecto
         if directory_path is None:

@@ -74,7 +74,7 @@ Add the following to your `claude_desktop_config.json`:
       ],
       "env": {
         "CHROMA_DB_FOLDER_NAME": "default",
-        "SENTENCE_TRANSFORMER_PATH": "Linq-AI-Research/Linq-Embed-Mistral"
+        "SENTENCE_TRANSFORMER_PATH": "jinaai/jina-embeddings-v2-base-code"
       }
     }
   }
