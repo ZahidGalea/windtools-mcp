@@ -132,13 +132,28 @@ pyproject.toml
 README.md
 ```
 
-### Release Process
+## Release Process
+
+La versión del proyecto se gestiona de forma centralizada en el archivo `VERSION`. El proceso de release es automático:
+
+1. Actualizar el número de versión en el archivo `VERSION`
+2. Hacer commit y push a la rama `main`
+3. El flujo de trabajo de GitHub Actions automáticamente:
+    - Detectará el cambio en el archivo `VERSION`
+    - Creará un tag de git con el formato `v{VERSION}`
+    - Generará una release en GitHub
+    - Publicará el paquete en PyPI
 
 ```bash
-export release_version="v0.0.11"
-git tag -a $release_version -m "Release ${release_version}"
-git push origin $release_version
+# Ejemplo de actualización de versión
+echo "0.0.13" > VERSION
+git add VERSION
+git commit -m "Bump version to 0.0.13"
+git push origin main
 ```
+
+No es necesario crear manualmente tags o publicar en PyPI, todo se gestiona automáticamente cuando se actualiza el
+archivo `VERSION`.
 
 ## License
 

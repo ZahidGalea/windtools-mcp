@@ -2,29 +2,71 @@ name: Create Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths:
+      - 'VERSION'
 
 jobs:
+  check_version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      create_release: ${{ steps.check_tag.outputs.create_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get VERSION content
+        id: get_version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          VERSION="v${{ steps.get_version.outputs.version }}"
+          if git tag -l "$VERSION" | grep -q "$VERSION"; then
+            echo "Tag $VERSION already exists, skipping release"
+            echo "create_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $VERSION does not exist, creating release"
+            echo "create_release=true" >> $GITHUB_OUTPUT
+          fi
+
   release:
+    needs: check_version
+    if: needs.check_version.outputs.create_release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create Tag
+        run: |
+          VERSION="v${{ needs.check_version.outputs.version }}"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git tag -a $VERSION -m "Release $VERSION"
+          git push origin $VERSION
+
       - name: Create Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: v${{ needs.check_version.outputs.version }}
+          release_name: Release v${{ needs.check_version.outputs.version }}
           draft: false
           prerelease: false
 
   publish:
-    needs: release
+    needs: [ check_version, release ]
+    if: needs.check_version.outputs.create_release == 'true'
     runs-on: ubuntu-latest
     environment: release
     steps:
