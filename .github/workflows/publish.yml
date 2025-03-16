@@ -21,9 +21,9 @@ jobs:
       - name: Get VERSION content
         id: get_version
         run: |
-          VERSION=$(cat VERSION)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Current version: $VERSION"
+          VERSION_NUMBER=$(grep -oP '__version__ = "\K[^"]+' VERSION)
+          echo "version=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION_NUMBER"
 
       - name: Check if tag exists
         id: check_tag
@@ -48,11 +48,12 @@ jobs:
 
       - name: Create Tag
         run: |
-          VERSION="v${{ needs.check_version.outputs.version }}"
+          VERSION_NUMBER=$(grep -oP '__version__ = "\K[^"]+' VERSION)
+          TAG_VERSION="v$VERSION_NUMBER"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git tag -a $VERSION -m "Release $VERSION"
-          git push origin $VERSION
+          git tag -a "$TAG_VERSION" -m "Release $TAG_VERSION"
+          git push origin "$TAG_VERSION"
 
       - name: Create Release
         uses: actions/create-release@v1
