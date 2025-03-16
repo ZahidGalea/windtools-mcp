@@ -16,7 +16,7 @@ sentence transformers.
     - List the contents of a directory
     - Inputs:
         - `directory_path` (string): Path to list contents of, should be absolute path to a directory
-    - Returns: String with directory listing including file types and sizes
+    - Returns: JSON string containing directory information including file types and sizes
 
 ## Technical Architecture
 
@@ -33,7 +33,8 @@ The WindTools MCP Server is built on these key components:
 
 The server can be configured with the following environment variables:
 
-- `DATA_ROOT`: Directorio absoluto donde se almacenarán datos de la base de datos ChromaDB y el caché de modelos.
+- `DATA_ROOT`: Absolute directory where ChromaDB database and model cache will be stored (default: a 'data' directory
+  inside the package)
 - `CHROMA_DB_FOLDER_NAME`: Name of the folder where ChromaDB stores data (default: "default")
 - `SENTENCE_TRANSFORMER_PATH`: Path to the sentence transformer model (default: "jinaai/jina-embeddings-v2-base-code")
 
@@ -59,7 +60,7 @@ Add the following to your `claude_desktop_config.json`:
 
 #### Direct Execution
 
-Forcing -p 3.11 ya que chromadb da problemas en versions de python superiores.
+Using Python 3.11 as ChromaDB has issues with newer Python versions.
 
 ```json
 {
@@ -72,7 +73,7 @@ Forcing -p 3.11 ya que chromadb da problemas en versions de python superiores.
         "windtools-mcp"
       ],
       "env": {
-        "DATA_ROOT": "/Users/<user>/windtools_data", 
+        "DATA_ROOT": "/Users/<user>/windtools_data",
         "CHROMA_DB_FOLDER_NAME": "chromadb",
         "SENTENCE_TRANSFORMER_PATH": "jinaai/jina-embeddings-v2-base-code"
       }
@@ -81,8 +82,8 @@ Forcing -p 3.11 ya que chromadb da problemas en versions de python superiores.
 }
 ```
 
-Los datos (incluyendo la base de datos ChromaDB y el caché de modelos) se guardarán en el directorio `~/windtools_data`
-y persistirán entre ejecuciones del contenedor.
+Data (including ChromaDB database and model cache) will be saved in the `/Users/<user>/windtools_data` directory and persist between
+container executions.
 
 ## Development
 
@@ -127,6 +128,7 @@ tests/
 .gitignore
 .python-version
 pyproject.toml
+README.md
 ```
 
 ## License
