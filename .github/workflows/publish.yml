@@ -41,8 +41,7 @@ jobs:
     needs: check_version
     if: needs.check_version.outputs.create_release == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    permissions: write-all
     steps:
       - uses: actions/checkout@v4
 
