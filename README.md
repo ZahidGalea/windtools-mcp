@@ -1,6 +1,7 @@
 # WindTools MCP Server
 
-MCP Server for the WindTools code assistant, providing document embedding and retrieval capabilities using ChromaDB and sentence transformers.
+MCP Server for the WindTools code assistant, providing document embedding and retrieval capabilities using ChromaDB and
+sentence transformers.
 
 ## Features
 
@@ -12,10 +13,10 @@ MCP Server for the WindTools code assistant, providing document embedding and re
 ## Tools
 
 1. `list_dir`
-   - List the contents of a directory
-   - Inputs:
-     - `directory_path` (string): Path to list contents of, should be absolute path to a directory
-   - Returns: String with directory listing including file types and sizes
+    - List the contents of a directory
+    - Inputs:
+        - `directory_path` (string): Path to list contents of, should be absolute path to a directory
+    - Returns: String with directory listing including file types and sizes
 
 ## Technical Architecture
 
@@ -56,37 +57,6 @@ pip install -e .
 
 Add the following to your `claude_desktop_config.json`:
 
-#### Docker with Persistent Data
-
-```json
-{
-  "mcpServers": { 
-    "windtools": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "-v", 
-        "~/windtools_data:/app/data",
-        "-e",
-        "DATA_ROOT",
-        "-e",
-        "CHROMA_DB_FOLDER_NAME",
-        "-e",
-        "SENTENCE_TRANSFORMER_PATH",
-        "windtools-mcp"
-      ],
-      "env": {
-        "DATA_ROOT": "/app/data",
-        "CHROMA_DB_FOLDER_NAME": "chromadb",
-        "SENTENCE_TRANSFORMER_PATH": "jinaai/jina-embeddings-v2-base-code"
-      }
-    }
-  }
-}
-```
-
 #### Direct Execution
 
 ```json
@@ -95,7 +65,7 @@ Add the following to your `claude_desktop_config.json`:
     "windtools": {
       "command": "mcp-wintools",
       "env": {
-        "DATA_ROOT": "./data",
+        "DATA_ROOT": "~/windtools_data",
         "CHROMA_DB_FOLDER_NAME": "chromadb",
         "SENTENCE_TRANSFORMER_PATH": "jinaai/jina-embeddings-v2-base-code"
       }
@@ -104,34 +74,8 @@ Add the following to your `claude_desktop_config.json`:
 }
 ```
 
-## Build
-
-Docker build:
-
-```bash
-docker build -t windtools-mcp .
-```
-
-## Running Docker with Persistent Data
-
-Para ejecutar el contenedor con persistencia de datos:
-
-```bash
-# Crea un directorio para los datos persistentes
-mkdir -p ~/windtools_data
-
-# Ejecuta el contenedor mapeando el volumen
-docker run --rm -i \
-  -v ~/windtools_data:/app/data \
-  -e DATA_ROOT=/app/data \
-  -e CHROMA_DB_FOLDER_NAME=chromadb \
-  -e SENTENCE_TRANSFORMER_PATH=jinaai/jina-embeddings-v2-base-code \
-  windtools-mcp
-```
-
-docker run --rm -i -v ~/windtools_data:/app/data -e DATA_ROOT -e CHROMA_DB_FOLDER_NAME -e SENTENCE_TRANSFORMER_PATH windtools-mcp
-
-Los datos (incluyendo la base de datos ChromaDB y el caché de modelos) se guardarán en el directorio `~/windtools_data` y persistirán entre ejecuciones del contenedor.
+Los datos (incluyendo la base de datos ChromaDB y el caché de modelos) se guardarán en el directorio `~/windtools_data`
+y persistirán entre ejecuciones del contenedor.
 
 ## Development
 
@@ -169,10 +113,10 @@ tests/
   test_client.py
 .gitignore
 .python-version
-Dockerfile
 pyproject.toml
 ```
 
 ## License
 
-This MCP server is licensed under the MIT License. This means you are free to use, modify, and distribute the software, subject to the terms and conditions of the MIT License.
+This MCP server is licensed under the MIT License. This means you are free to use, modify, and distribute the software,
+subject to the terms and conditions of the MIT License.
