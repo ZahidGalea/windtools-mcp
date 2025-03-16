@@ -1,5 +1,6 @@
 import logging
 import os
+
 # Add lifespan support for startup/shutdown with strong typing
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -25,9 +26,11 @@ SENTENCE_TRANSFORMER_CACHE_FOLDER = os.path.join(DATA_FOLDER, "embedding_cache")
 # Obtener directorios permitidos de las variables de entorno
 # Si no hay ninguno configurado, la lista estará vacía (ninguno permitido por defecto)
 DEFAULT_ALLOWED_DIRECTORIES = [
-    dir_path for dir_path in os.environ.get("ALLOWED_DIRECTORIES", "").split(",")
+    dir_path
+    for dir_path in os.environ.get("ALLOWED_DIRECTORIES", "").split(",")
     if dir_path and dir_path.strip()
 ]
+
 
 # Server lifespan context for ChromaDB initialization and project directories
 @dataclass
@@ -158,7 +161,9 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[ServerContext]:
     if allowed_dirs:
         logging.info(f"Directorios permitidos configurados: {allowed_dirs}")
     else:
-        logging.warning("No hay directorios permitidos configurados. Las operaciones de sistema de archivos estarán restringidas hasta que se agreguen.")
+        logging.warning(
+            "No hay directorios permitidos configurados. Las operaciones de sistema de archivos estarán restringidas hasta que se agreguen."
+        )
 
     ctx = ServerContext(
         chroma_client=chroma_client,
@@ -320,23 +325,33 @@ def remove_allowed_directory(ctx: Context, directory_path: str) -> str:
         # Verificar si está en la lista
         if normalized_path not in server_ctx.allowed_directories:
             # Intentar buscar si existe como subcadena
-            matching_dirs = [d for d in server_ctx.allowed_directories if d.startswith(normalized_path) or normalized_path.startswith(d)]
+            matching_dirs = [
+                d
+                for d in server_ctx.allowed_directories
+                if d.startswith(normalized_path) or normalized_path.startswith(d)
+            ]
             if matching_dirs:
                 return f"Directorio no encontrado exactamente, pero existen coincidencias similares: {', '.join(matching_dirs)}"
             return f"El directorio no está en la lista: {normalized_path}"
 
         # Si el directorio de trabajo actual está dentro del directorio que se elimina,
         # resetear el directorio de trabajo actual
-        if (server_ctx.current_working_directory and
-                server_ctx.current_working_directory.startswith(normalized_path)):
+        if (
+            server_ctx.current_working_directory
+            and server_ctx.current_working_directory.startswith(normalized_path)
+        ):
             server_ctx.current_working_directory = None
-            logging.warning(f"Se ha reseteado el directorio de trabajo actual porque estaba dentro de {normalized_path}")
+            logging.warning(
+                f"Se ha reseteado el directorio de trabajo actual porque estaba dentro de {normalized_path}"
+            )
 
         # Eliminar de la lista
         server_ctx.allowed_directories.remove(normalized_path)
 
         # Log para seguridad
-        logging.info(f"Directorio eliminado de la lista de permitidos: {normalized_path}")
+        logging.info(
+            f"Directorio eliminado de la lista de permitidos: {normalized_path}"
+        )
 
         return f"Directorio eliminado de la lista de permitidos: {normalized_path}"
     except Exception as e:
