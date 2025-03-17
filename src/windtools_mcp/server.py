@@ -44,6 +44,7 @@ ctx = ServerContext(embedding_model=SENTENCE_TRANSFORMER_PATH)
 async def initialize_resources():
     """Initialize ChromaDB and embedding model in background"""
     try:
+        logging.info("Thanks for using WindCodeAssistant!")
         logging.info(f"Initializing ChromaDB at {CHROMA_DB_PATH} and embedding model...")
 
         # Ensure all data directories exist

@@ -70,6 +70,7 @@ Using Python 3.11 as ChromaDB has issues with newer Python versions.
       "args": [
         "-p",
         "3.11",
+        "-U",
         "windtools-mcp"
       ],
       "env": {
