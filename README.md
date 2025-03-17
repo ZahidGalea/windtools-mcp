@@ -144,14 +144,6 @@ La versión del proyecto se gestiona de forma centralizada en el archivo `VERSIO
     - Generará una release en GitHub
     - Publicará el paquete en PyPI
 
-```bash
-# Ejemplo de actualización de versión
-echo "0.0.13" > VERSION
-git add VERSION
-git commit -m "Bump version to 0.0.13"
-git push origin main
-```
-
 No es necesario crear manualmente tags o publicar en PyPI, todo se gestiona automáticamente cuando se actualiza el
 archivo `VERSION`.
 
