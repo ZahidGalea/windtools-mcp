@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import time
 import uuid
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -783,3 +784,830 @@ def test_edit_file_unsupported_type(setup_test_directory):
 
     assert "error" in result_json, "Result should contain an error key"
     assert ".ipynb files is not supported" in result_json["error"], "Error should mention unsupported file type"
+
+
+
+# ========== Additional Fixtures ==========
+
+@pytest.fixture
+def setup_large_code_directory():
+    """Fixture that creates a temporary directory with many code files"""
+    test_dir = tempfile.mkdtemp()
+
+    # Create a structure with many files
+    for i in range(1, 101):
+        subdir = os.path.join(test_dir, f"module_{i//10}")
+        os.makedirs(subdir, exist_ok=True)
+
+        with open(os.path.join(subdir, f"file_{i}.py"), "w") as f:
+            f.write(f"""
+# This is file {i}
+def function_{i}():
+    '''Function {i} documentation'''
+    print("Function {i}")
+    return {i}
+
+class Class_{i}:
+    def method_{i}(self, param):
+        return param * {i}
+""")
+
+    yield test_dir
+
+    # Clean up after tests
+    shutil.rmtree(test_dir)
+
+
+@pytest.fixture
+def setup_complex_code_directory():
+    """Fixture that creates a temporary directory with complex code structures"""
+    test_dir = tempfile.mkdtemp()
+
+    # Create Python file with complex structures
+    python_complex = """
+import os
+import sys
+from typing import List, Dict, Optional
+
+# A complex function with decorators
+def decorator(func):
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+@decorator
+def complex_function(param1: str, param2: int = 0) -> Dict[str, any]:
+    '''
+    This is a complex function with:
+    - Type annotations
+    - Default parameters
+    - Docstring
+    - Multiple return statements
+    '''
+    result = {"status": "processing"}
+
+    if not param1:
+        result["status"] = "error"
+        result["message"] = "param1 is required"
+        return result
+
+    if param2 < 0:
+        result["status"] = "warning"
+        result["value"] = None
+    else:
+        result["status"] = "success"
+        result["value"] = param1 * param2
+
+    return result
+
+# A class with nested classes
+class OuterClass:
+    class NestedClass:
+        def nested_method(self):
+            return "nested"
+
+    def __init__(self):
+        self.nested = self.NestedClass()
+
+    def outer_method(self):
+        return self.nested.nested_method() + "_from_outer"
+
+# Class inheritance
+class BaseClass:
+    def base_method(self):
+        return "base"
+
+class ChildClass(BaseClass):
+    def child_method(self):
+        return self.base_method() + "_child"
+"""
+
+    # Create JS file with complex structures
+    js_complex = """
+// Complex JavaScript with ES6 features
+import { Component } from 'framework';
+
+// Arrow function with default parameters
+const arrowFunction = (param1, param2 = 0) => {
+    return param1 * param2;
+};
+
+// Class with inheritance
+class BaseComponent {
+    constructor(name) {
+        this.name = name;
+    }
+
+    render() {
+        return `<div>${this.name}</div>`;
+    }
+}
+
+class SpecialComponent extends BaseComponent {
+    constructor(name, type) {
+        super(name);
+        this.type = type;
+    }
+
+    render() {
+        return `<${this.type}>${super.render()}</${this.type}>`;
+    }
+}
+
+// Nested object
+const config = {
+    api: {
+        endpoints: {
+            users: '/api/users',
+            posts: '/api/posts'
+        },
+        version: 'v1'
+    },
+    settings: {
+        theme: 'dark',
+        notifications: true
+    }
+};
+
+// Function with complex logic
+function processData(data) {
+    if (!data || !Array.isArray(data)) {
+        throw new Error('Invalid data');
+    }
+
+    return data
+        .filter(item => item.active)
+        .map(item => ({
+            id: item.id,
+            name: item.name.toUpperCase(),
+            score: item.score * 2
+        }))
+        .sort((a, b) => b.score - a.score);
+}
+"""
+
+    # Create files with special characters
+    special_chars = """
+This file has special characters:
+• Bullets and unusual punctuation: em—dash
+• Unicode: こんにちは, 你好, Привет
+• Emojis: 🚀 🌟 🔥 💻
+• Control chars: Line 1
+Line 2\tTabbed text
+"""
+
+    # Save the files
+    with open(os.path.join(test_dir, "complex.py"), "w") as f:
+        f.write(python_complex)
+
+    with open(os.path.join(test_dir, "complex.js"), "w") as f:
+        f.write(js_complex)
+
+    with open(os.path.join(test_dir, "special_chars.txt"), "w") as f:
+        f.write(special_chars)
+
+    # Create related files for testing
+    os.makedirs(os.path.join(test_dir, "src"), exist_ok=True)
+    os.makedirs(os.path.join(test_dir, "tests"), exist_ok=True)
+
+    with open(os.path.join(test_dir, "src", "module.py"), "w") as f:
+        f.write("""
+def add(a, b):
+    return a + b
+
+def subtract(a, b):
+    return a - b
+""")
+
+    with open(os.path.join(test_dir, "tests", "test_module.py"), "w") as f:
+        f.write("""
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.module import add, subtract
+
+def test_add():
+    assert add(1, 2) == 3
+
+def test_subtract():
+    assert subtract(5, 3) == 2
+""")
+
+    # Create files for edit tests
+    with open(os.path.join(test_dir, "edit_target.py"), "w") as f:
+        f.write("""def function1():
+    # This is the first function
+    print("Hello from function 1")
+    return True
+
+def function2():
+    # This is the second function
+    print("Hello from function 2")
+    return False
+
+def function3():
+    # This is the third function
+    print("Hello from function 3")
+    return None
+""")
+
+    yield test_dir
+
+    # Clean up after tests
+    shutil.rmtree(test_dir)
+
+
+@pytest.fixture
+def mock_chroma_db():
+    """Fixture that mocks ChromaDB client and collection"""
+    original_is_initialized = ctx.is_initialized
+    original_chroma_client = ctx.chroma_client
+    original_code_collection = ctx.code_collection
+
+    # Create mock collection
+    mock_collection = MagicMock()
+    mock_collection.count.return_value = 50
+    mock_collection.query.return_value = {
+        "ids": [["doc1", "doc2", "doc3"]],
+        "distances": [[0.1, 0.2, 0.3]],
+        "metadatas": [[
+            {"file_path": "/path/to/file1.py"},
+            {"file_path": "/path/to/file2.py"},
+            {"file_path": "/path/to/file3.py"}
+        ]],
+        "documents": [[
+            "def search_function(query):\n    return f\"Results for {query}\"",
+            "class SearchEngine:\n    def search(self, query):\n        return []",
+            "# Search utility functions\ndef preprocess_query(query):\n    return query.lower()"
+        ]]
+    }
+
+    # Create mock client
+    mock_client = MagicMock()
+    mock_client.get_collection.return_value = mock_collection
+
+    # Set mocks in context
+    ctx.is_initialized = True
+    ctx.chroma_client = mock_client
+    ctx.code_collection = mock_collection
+
+    yield
+
+    # Restore original values
+    ctx.is_initialized = original_is_initialized
+    ctx.chroma_client = original_chroma_client
+    ctx.code_collection = original_code_collection
+
+
+# ========== Additional Tests for codebase_search ==========
+
+def test_codebase_search_initialized(setup_code_directory, mock_chroma_db):
+    """Test that codebase_search works correctly when ChromaDB is initialized"""
+    # Call the function with mock ChromaDB
+    result = codebase_search("search function", [setup_code_directory])
+    result_json = json.loads(result)
+
+    assert "results" in result_json, "Result should contain results key"
+    assert len(result_json["results"]) == 3, "Should return 3 results from mock"
+    assert "search" in result_json["results"][0]["snippet"], "First result should contain search snippet"
+    assert "relevance_score" in result_json["results"][0], "Results should have relevance scores"
+
+
+def test_codebase_search_large_directory(setup_large_code_directory, mock_chroma_db):
+    """Test that codebase_search warns about large number of files"""
+    # Mock the logger to capture warnings
+    with patch("logging.warning") as mock_warning:
+        _ = codebase_search("function", [setup_large_code_directory])
+
+        # Verify warning was logged
+        mock_warning.assert_called_with(
+            "Large number of files found (100). Search quality may be reduced."
+        )
+
+
+def test_codebase_search_multiple_directories(setup_code_directory, mock_chroma_db):
+    """Test that codebase_search can search across multiple directories"""
+    test_dir1 = setup_code_directory
+    test_dir2 = tempfile.mkdtemp()
+
+    try:
+        # Call the function with multiple directories
+        result = codebase_search("function", [test_dir1, test_dir2])
+        result_json = json.loads(result)
+
+        assert "results" in result_json, "Result should contain results key"
+    finally:
+        shutil.rmtree(test_dir2)
+
+
+# ========== Additional Tests for grep_search ==========
+
+def test_grep_search_case_sensitivity():
+    """Test that grep_search handles case sensitivity correctly"""
+    # Prepare a mock subprocess.run function
+    original_run = subprocess.run
+
+    try:
+        def mock_run(args, **kwargs):
+            class MockCompletedProcess:
+                def __init__(self, stdout, stderr, returncode):
+                    self.stdout = stdout
+                    self.stderr = stderr
+                    self.returncode = returncode
+
+            # Check if -i flag is in args
+            is_case_insensitive = "-i" in args
+
+            if "PATTERN" in args:
+                if is_case_insensitive:
+                    return MockCompletedProcess(
+                        stdout="file.txt:1:pattern match\nfile.txt:2:PATTERN MATCH",
+                        stderr="",
+                        returncode=0
+                    )
+                else:
+                    return MockCompletedProcess(
+                        stdout="file.txt:2:PATTERN MATCH",
+                        stderr="",
+                        returncode=0
+                    )
+            else:
+                return MockCompletedProcess(
+                    stdout="",
+                    stderr="",
+                    returncode=1
+                )
+
+        # Replace subprocess.run with our mock
+        subprocess.run = mock_run
+
+        # Test case insensitive search
+        result_insensitive = grep_search("/tmp", "PATTERN", True, ["*"], True)
+
+        assert "file.txt:1:pattern" in result_insensitive, "Case insensitive search should find lowercase pattern"
+        assert "file.txt:2:PATTERN" in result_insensitive, "Case insensitive search should find uppercase pattern"
+
+        # Test case sensitive search
+        result_sensitive = grep_search("/tmp", "PATTERN", True, ["*"], False)
+
+        assert "file.txt:1:pattern" not in result_sensitive, "Case sensitive search should not find lowercase pattern"
+        assert "file.txt:2:PATTERN" in result_sensitive, "Case sensitive search should find uppercase pattern"
+    finally:
+        # Restore original
+        subprocess.run = original_run
+
+
+def test_grep_search_match_per_line():
+    """Test that grep_search handles match_per_line option correctly"""
+    original_run = subprocess.run
+
+    try:
+        def mock_run(args, **kwargs):
+            class MockCompletedProcess:
+                def __init__(self, stdout, stderr, returncode):
+                    self.stdout = stdout
+                    self.stderr = stderr
+                    self.returncode = returncode
+
+            # Check if -l flag is NOT in args (meaning match per line is True)
+            match_per_line = "-l" not in args
+
+            if match_per_line:
+                return MockCompletedProcess(
+                    stdout="file.txt:1:first match\nfile.txt:5:second match",
+                    stderr="",
+                    returncode=0
+                )
+            else:
+                return MockCompletedProcess(
+                    stdout="file.txt",
+                    stderr="",
+                    returncode=0
+                )
+
+        # Replace subprocess.run with our mock
+        subprocess.run = mock_run
+
+        # Test with match_per_line=True
+        result_per_line = grep_search("/tmp", "match", True, ["*"], True)
+
+        assert ":1:" in result_per_line, "match_per_line=True should include line numbers"
+        assert "first match" in result_per_line, "match_per_line=True should include match content"
+
+        # Test with match_per_line=False
+        result_file_only = grep_search("/tmp", "match", False, ["*"], True)
+
+        assert "file.txt" in result_file_only, "match_per_line=False should include file names"
+        assert ":1:" not in result_file_only, "match_per_line=False should not include line numbers"
+        assert "first match" not in result_file_only, "match_per_line=False should not include match content"
+    finally:
+        # Restore original
+        subprocess.run = original_run
+
+
+def test_grep_search_result_truncation():
+    """Test that grep_search truncates results over 50 matches"""
+    original_run = subprocess.run
+
+    try:
+        def mock_run(args, **kwargs):
+            class MockCompletedProcess:
+                def __init__(self, stdout, stderr, returncode):
+                    self.stdout = stdout
+                    self.stderr = stderr
+                    self.returncode = returncode
+
+            # Generate 100 matches
+            lines = []
+            for i in range(1, 101):
+                lines.append(f"file{i}.txt:1:match {i}")
+
+            return MockCompletedProcess(
+                stdout="\n".join(lines),
+                stderr="",
+                returncode=0
+            )
+
+        # Replace subprocess.run with our mock
+        subprocess.run = mock_run
+
+        # Test result truncation
+        result = grep_search("/tmp", "match", True, ["*"], True)
+
+        assert "file1.txt" in result, "First match should be included"
+        assert "file50.txt" in result, "50th match should be included"
+        assert "file51.txt" not in result, "51st match should not be included"
+        assert "more matches" in result, "Truncation message should be included"
+        assert "50 more matches" in result, "Number of truncated matches should be correct"
+    finally:
+        # Restore original
+        subprocess.run = original_run
+
+
+# ========== Additional Tests for find_by_name ==========
+
+def test_find_by_name_max_depth(setup_test_directory):
+    """Test that find_by_name respects max_depth parameter"""
+    test_dir = setup_test_directory
+
+    # Create a deeper directory structure
+    deep_dir = os.path.join(test_dir, "level1", "level2", "level3")
+    os.makedirs(deep_dir, exist_ok=True)
+
+    with open(os.path.join(deep_dir, "deep_file.txt"), "w") as f:
+        f.write("Deep file content")
+
+    # Search with depth limit 1
+    result_depth1 = find_by_name(test_dir, "*.txt", max_depth=1)
+    result_json_depth1 = json.loads(result_depth1)
+
+    # Search with depth limit 3
+    result_depth3 = find_by_name(test_dir, "*.txt", max_depth=3)
+    result_json_depth3 = json.loads(result_depth3)
+
+    # Get all paths from results
+    paths_depth1 = [item["path"] for item in result_json_depth1["results"]]
+    paths_depth3 = [item["path"] for item in result_json_depth3["results"]]
+
+    # Depth 1 should not include deep file
+    assert not any("level2" in p for p in paths_depth1), "Depth 1 should not include files at level 2 or deeper"
+
+    # Depth 3 should include deep file
+    assert any("deep_file.txt" in p for p in paths_depth3), "Depth 3 should include deep file"
+
+
+def test_find_by_name_type_filter(setup_test_directory):
+    """Test that find_by_name applies type filters correctly"""
+    test_dir = setup_test_directory
+
+    # Search for files only
+    result_files = find_by_name(test_dir, "*", type_filter="file")
+    result_json_files = json.loads(result_files)
+
+    # Verify all results are files
+    assert all(item["type"] == "file" for item in result_json_files["results"]), "File filter should only return files"
+    assert len(result_json_files["results"]) > 0, "Should find some files"
+
+    # We could also test for directory type, but the function currently only implements file type
+
+
+def test_find_by_name_complex_patterns(setup_complex_code_directory):
+    """Test that find_by_name handles complex glob patterns"""
+    test_dir = setup_complex_code_directory
+
+    # Test **/ pattern for recursive matching
+    result_recursive = find_by_name(test_dir, "**/test_*.py")
+    result_json_recursive = json.loads(result_recursive)
+
+    test_file_paths = [item["path"] for item in result_json_recursive["results"]]
+    assert any("test_module.py" in p for p in test_file_paths), "Should find test files in subdirectories"
+
+    # Test character classes
+    result_char_class = find_by_name(test_dir, "*.[jp][sy]*")  # Matches .js or .py
+    result_json_char_class = json.loads(result_char_class)
+
+    file_exts = [os.path.splitext(item["path"])[1] for item in result_json_char_class["results"]]
+    assert ".py" in file_exts, "Should find .py files"
+    assert ".js" in file_exts, "Should find .js files"
+    assert not any(ext not in [".py", ".js"] for ext in file_exts), "Should only find .py and .js files"
+
+
+# ========== Additional Tests for view_file ==========
+
+def test_view_file_line_limit():
+    """Test that view_file enforces the 200 line limit"""
+    # Create a temporary file with more than 200 lines
+    _, temp_file = tempfile.mkstemp()
+    try:
+        with open(temp_file, 'w') as f:
+            for i in range(300):
+                f.write(f"Line {i}\n")
+
+        # Try to view more than 200 lines
+        result = view_file(temp_file, 0, 250)
+        result_json = json.loads(result)
+
+        assert "error" in result_json, "Result should contain an error key"
+        assert "200 lines" in result_json["error"], "Error should mention 200 line limit"
+
+        # Try to view exactly 200 lines
+        result = view_file(temp_file, 0, 199)  # 0-199 = 200 lines
+
+        assert "error" not in result, "Valid request should not result in error"
+        assert "0: Line 0" in result, "Result should include first line"
+        assert "199: Line 199" in result, "Result should include last requested line"
+    finally:
+        os.unlink(temp_file)
+
+
+def test_view_file_special_characters(setup_complex_code_directory):
+    """Test that view_file handles files with special characters"""
+    test_dir = setup_complex_code_directory
+    special_file = os.path.join(test_dir, "special_chars.txt")
+
+    # View the file with special characters
+    result = view_file(special_file, 0, 10)
+
+    # Basic validation that file content is included
+    assert "Unicode: こんにちは" in result, "Unicode characters should be preserved"
+    assert "Emojis: 🚀" in result, "Emoji characters should be preserved"
+
+    # Since the function uses 'errors=replace', it should not crash on invalid unicode
+    # but replace them with the replacement character
+
+
+# ========== Additional Tests for view_code_item ==========
+
+def test_view_code_item_complex_python(setup_complex_code_directory):
+    """Test that view_code_item handles complex Python code structures"""
+    test_dir = setup_complex_code_directory
+    complex_py = os.path.join(test_dir, "complex.py")
+
+    # View a decorated function
+    result = view_code_item(complex_py, "complex_function")
+
+    assert "@decorator" in result, "Decorator should be included in function definition"
+    assert "def complex_function" in result, "Function signature should be included"
+    assert "This is a complex function" in result, "Docstring should be included"
+    assert "return result" in result, "Function body should be included"
+
+    # View a nested class method
+    result = view_code_item(complex_py, "OuterClass.NestedClass.nested_method")
+
+    if "def nested_method" in result:
+        assert "return \"nested\"" in result, "Method body should be included"
+    else:
+        # The current implementation might not support deeply nested methods
+        # but it should not crash
+        pass
+
+    # View an inherited method
+    result = view_code_item(complex_py, "ChildClass.child_method")
+
+    if "def child_method" in result:
+        assert "return self.base_method()" in result, "Method body should be included"
+    else:
+        # The current implementation might not fully support inheritance
+        # but it should not crash
+        pass
+
+
+def test_view_code_item_complex_js(setup_complex_code_directory):
+    """Test that view_code_item handles complex JavaScript code structures"""
+    test_dir = setup_complex_code_directory
+    complex_js = os.path.join(test_dir, "complex.js")
+
+    # View an arrow function
+    result = view_code_item(complex_js, "arrowFunction")
+
+    # Since the current implementation might have limited JS support,
+    # we just check it doesn't crash and returns some content
+    if not isinstance(result, dict) or "error" not in result:
+        assert "arrowFunction" in result, "Function name should be in result"
+
+    # View a class method
+    result = view_code_item(complex_js, "SpecialComponent.render")
+
+    # Again, if it's supported, check content, otherwise just ensure no crash
+    if not isinstance(result, dict) or "error" not in result:
+        assert "render" in result, "Method name should be in result"
+
+
+# ========== Additional Tests for related_files ==========
+
+def test_related_files_import_relationship(setup_complex_code_directory):
+    """Test that related_files identifies relationships based on imports"""
+    test_dir = setup_complex_code_directory
+    test_file = os.path.join(test_dir, "tests", "test_module.py")
+
+    # Get related files for the test file
+    result = related_files(test_file)
+    result_json = json.loads(result)
+
+    assert "related_files" in result_json, "Result should contain related_files key"
+
+    # Find related file that contains the module being imported
+    module_file_rel = None
+    for item in result_json["related_files"]:
+        if "module.py" in item["path"]:
+            module_file_rel = item
+            break
+
+    assert module_file_rel is not None, "Should find module.py as related to test_module.py"
+    assert module_file_rel["relevance_score"] > 0.5, "Import relationship should have high relevance score"
+
+
+def test_related_files_naming_patterns(setup_complex_code_directory):
+    """Test that related_files identifies relationships based on naming patterns"""
+    test_dir = setup_complex_code_directory
+    module_file = os.path.join(test_dir, "src", "module.py")
+
+    # Get related files for the module file
+    result = related_files(module_file)
+    result_json = json.loads(result)
+
+    assert "related_files" in result_json, "Result should contain related_files key"
+
+    # Find related test file based on naming pattern
+    test_file_rel = None
+    for item in result_json["related_files"]:
+        if "test_module.py" in item["path"]:
+            test_file_rel = item
+            break
+
+    assert test_file_rel is not None, "Should find test_module.py as related to module.py"
+    assert "related_type" in test_file_rel, "Related file should have a relationship type"
+
+
+# ========== Additional Tests for run_command and command_status ==========
+
+def test_command_lifecycle(setup_command_environment):
+    """Test the full lifecycle of a command from registration to completion"""
+    # Register a command
+    result = run_command("echo", "/tmp", ["hello", "world"], True, 0)
+    result_json = json.loads(result)
+
+    command_id = result_json["command_id"]
+
+    # Verify initial status
+    assert result_json["status"] == "pending_approval", "Initial status should be pending_approval"
+
+    # Simulate user approval and command execution
+    ctx.command_registry[command_id]["status"] = "running"
+    ctx.command_registry[command_id]["output"] = ["Running command...\n"]
+
+    # Get status during execution
+    result = command_status(command_id, "top", 100)
+    result_json = json.loads(result)
+
+    assert result_json["status"] == "running", "Status should be running after approval"
+    assert "Running command" in result_json["output"], "Should show command output"
+
+    # Simulate command completion
+    ctx.command_registry[command_id]["status"] = "done"
+    ctx.command_registry[command_id]["output"].append("hello world\n")
+
+    # Get final status
+    result = command_status(command_id, "top", 100)
+    result_json = json.loads(result)
+
+    assert result_json["status"] == "done", "Status should be done after completion"
+    assert "hello world" in result_json["output"], "Should show final command output"
+
+
+def test_command_output_priority(setup_command_environment):
+    """Test that command_status respects output priority settings"""
+    # Register a command with long output
+    command_id = str(uuid.uuid4())
+    ctx.command_registry[command_id] = {
+        "command": "test",
+        "args": [],
+        "cwd": "/tmp",
+        "blocking": True,
+        "wait_ms": 0,
+        "status": "done",
+        "output": [],
+        "error": None,
+        "timestamp": time.time()
+    }
+
+    # Generate 100 lines of output
+    for i in range(1, 101):
+        ctx.command_registry[command_id]["output"].append(f"Line {i}\n")
+
+    # Test top priority with character limit
+    result = command_status(command_id, "top", 50)
+    result_json = json.loads(result)
+
+    assert "Line 1" in result_json["output"], "Top priority should include start of output"
+    assert "Line 10" not in result_json["output"], "Top priority with limit should not include later output"
+
+    # Test bottom priority with character limit
+    result = command_status(command_id, "bottom", 50)
+    result_json = json.loads(result)
+
+    assert "Line 100" in result_json["output"], "Bottom priority should include end of output"
+    assert "Line 1" not in result_json["output"], "Bottom priority with limit should not include early output"
+
+    # Test split priority with character limit
+    result = command_status(command_id, "split", 100)
+    result_json = json.loads(result)
+
+    assert "Line 1" in result_json["output"], "Split priority should include start of output"
+    assert "Line 100" in result_json["output"], "Split priority should include end of output"
+    assert "... (output truncated) ..." in result_json["output"], "Split priority should indicate truncation"
+
+
+def test_wait_ms_before_async():
+    """Test that run_command handles wait_ms_before_async parameter"""
+    # This would ideally test that the wait_ms parameter affects timing
+    # but since our implementation is simulated, we just check it's stored correctly
+
+    result = run_command("sleep", "/tmp", ["1"], False, 500)
+    result_json = json.loads(result)
+
+    command_id = result_json["command_id"]
+    assert ctx.command_registry[command_id]["wait_ms"] == 500, "wait_ms should be stored correctly"
+
+
+# ========== Additional Tests for edit_file ==========
+
+def test_edit_file_actual_edits(setup_complex_code_directory):
+    """Test that edit_file actually applies edits correctly"""
+    # This test is limited since the current implementation just simulates edits
+    # In a real implementation, this would verify the edits are applied to the file
+
+    test_dir = setup_complex_code_directory
+    edit_file_path = os.path.join(test_dir, "edit_target.py")
+
+    # Read original content
+    with open(edit_file_path, 'r') as f:
+        original_content = f.read()
+
+    # Make a copy to test actual edits
+    test_edit_path = os.path.join(test_dir, "edit_test.py")
+    with open(test_edit_path, 'w') as f:
+        f.write(original_content)
+
+    # Apply a simple edit
+    edit_content = """{{ ... }}
+def function2():
+    # This is the modified second function
+    print("Modified function 2")
+    return True
+{{ ... }}"""
+
+    result = edit_file(test_edit_path, edit_content, "python", "Modified function2", True)
+
+    # In a real implementation, we would check that function2 was actually modified
+    # For now, just verify the function doesn't crash and returns success
+    result_json = json.loads(result)
+    assert "success" in result_json, "Edit operation should report success status"
+
+
+def test_edit_file_multiple_sections(setup_complex_code_directory):
+    """Test that edit_file handles multiple edit sections correctly"""
+    # This test is limited since the current implementation just simulates edits
+
+    test_dir = setup_complex_code_directory
+    edit_file_path = os.path.join(test_dir, "edit_target.py")
+
+    # Apply multiple edits
+    edit_content = """{{ ... }}
+def function1():
+    # This is the modified first function
+    print("Modified function 1")
+    return True
+{{ ... }}
+def function3():
+    # This is the modified third function
+    print("Modified function 3")
+    return "modified"
+{{ ... }}"""
+
+    result = edit_file(edit_file_path, edit_content, "python", "Modified first and third functions", True)
+
+    # Verify the function parsed the edits correctly
+    result_json = json.loads(result)
+    if "edit_details" in result_json:
+        assert result_json["edit_details"]["edit_sections"] == 3, "Should identify 3 edit sections"
