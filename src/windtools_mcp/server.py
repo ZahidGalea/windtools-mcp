@@ -183,7 +183,8 @@ def list_dir(directory_path: str) -> str:
 @mcp.tool()
 def get_initialization_status() -> str:
     """
-    Get the status of background initialization process
+    Get the status of background initialization process.
+    The background initialization process includes initializing ChromaDB and embedding model.
 
     Returns:
         JSON string with initialization status
