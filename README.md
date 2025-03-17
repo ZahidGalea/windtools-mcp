@@ -96,19 +96,45 @@ container executions.
 
 ### Development Setup
 
-```bash
-# Create a virtual environment (optional but recommended)
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+For developing
 
+```bash
 # Install development dependencies
 uv sync --dev
+```
+
+If you want to use locally
+```bash
+pip install -e .
+```
+
+```json
+{
+  "mcpServers": {
+    "windtools": {
+      "command": "uv",
+      "args": [
+        "run",
+        "windtools-mcp"
+      ],
+      "env": {
+        "DATA_ROOT": "/Users/<user>/windtools_data",
+        "CHROMA_DB_FOLDER_NAME": "chromadb",
+        "SENTENCE_TRANSFORMER_PATH": "jinaai/jina-embeddings-v2-base-code"
+      }
+    }
+  }
+}
 ```
 
 ### Inspector
 
 ```bash
 npx @modelcontextprotocol/inspector uvx -p 3.11 windtools-mcp
+```
+
+```bash
+npx @modelcontextprotocol/inspector uv run windtools-mcp
 ```
 
 ### Running Tests

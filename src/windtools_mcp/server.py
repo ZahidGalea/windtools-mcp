@@ -55,7 +55,8 @@ async def initialize_resources():
         logging.info("Thanks for using WindCodeAssistant!")
         logging.info(f"Initializing ChromaDB at {CHROMA_DB_PATH} and embedding model...")
 
-        # Ensure all data directories exist
+        # Use run_in_executor for potentially blocking file system operations
+        loop = asyncio.get_running_loop()
         os.makedirs(CHROMA_DB_PATH, exist_ok=True)
         os.makedirs(SENTENCE_TRANSFORMER_CACHE_FOLDER, exist_ok=True)
 
@@ -63,11 +64,14 @@ async def initialize_resources():
         import chromadb
         from chromadb.utils import embedding_functions
 
-        chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-
-        embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=SENTENCE_TRANSFORMER_PATH,
-            cache_folder=SENTENCE_TRANSFORMER_CACHE_FOLDER,
+        # Run potentially blocking operations in executor
+        chroma_client = await loop.run_in_executor(None, lambda: chromadb.PersistentClient(path=CHROMA_DB_PATH))
+        embedding_function = await loop.run_in_executor(
+            None,
+            lambda: embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name=SENTENCE_TRANSFORMER_PATH,
+                cache_folder=SENTENCE_TRANSFORMER_CACHE_FOLDER,
+            ),
         )
 
         # Create or get the code collection
