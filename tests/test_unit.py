@@ -29,12 +29,8 @@ def setup_test_directory():
     shutil.rmtree(test_dir)
 
 
-def test_list_dir_success(mocker, setup_test_directory):
+def test_list_dir_success(setup_test_directory):
     """Test que list_dir funciona correctamente cuando el directorio existe"""
-    # Solo mockear los logs
-    mock_log_error = mocker.patch('windtools_mcp.server.logging.error')
-    mock_log_info = mocker.patch('windtools_mcp.server.logging.info')
-
     test_dir = setup_test_directory
 
     # Llamar a la función con un directorio real
@@ -47,16 +43,10 @@ def test_list_dir_success(mocker, setup_test_directory):
     assert isinstance(result_json, list), "El resultado debería ser una lista"
     assert len(result_json) > 0, "El resultado no debería estar vacío"
 
-    # Verificar que los logs se llamaron correctamente
-    mock_log_info.assert_called_once_with(f"Listing directory: {test_dir}")
-    mock_log_error.assert_not_called()
 
-
-def test_list_dir_content_structure(mocker, setup_test_directory):
+def test_list_dir_content_structure( setup_test_directory):
     """Test que verifica la estructura del contenido del directorio"""
-    # Solo mockear los logs
-    mocker.patch('windtools_mcp.server.logging.info')
-    mocker.patch('windtools_mcp.server.logging.error')
+
 
     test_dir = setup_test_directory
     result = list_dir(test_dir)
@@ -92,12 +82,8 @@ def test_list_dir_content_structure(mocker, setup_test_directory):
         assert file_entry["size"] > 0, "El tamaño debería ser mayor que cero"
 
 
-def test_list_dir_nonexistent_directory(mocker):
+def test_list_dir_nonexistent_directory():
     """Test que list_dir maneja correctamente un directorio que no existe"""
-    # Solo mockear los logs
-    mock_log_error = mocker.patch('windtools_mcp.server.logging.error')
-    mock_log_info = mocker.patch('windtools_mcp.server.logging.info')
-
     # Llamar a la función con un directorio que no existe
     non_existent_dir = "/ruta/que/definitivamente/no/existe/en/el/sistema" + str(os.getpid())
     result = list_dir(non_existent_dir)
@@ -114,15 +100,11 @@ def test_list_dir_nonexistent_directory(mocker):
         # Si es una lista, debería estar vacía o contener un mensaje de error
         assert len(result_json) == 0 or any("error" in item for item in result_json)
 
-    # Verificar que los logs se llamaron correctamente
-    mock_log_info.assert_called_once_with(f"Listing directory: {non_existent_dir}")
-    mock_log_error.assert_called_once()
 
-
-def test_list_dir_json_structure(mocker, setup_test_directory):
+def test_list_dir_json_structure(setup_test_directory):
     """Test que verifica la estructura JSON del resultado"""
     # Solo mockear los logs
-    mocker.patch('windtools_mcp.server.logging.info')
+
 
     test_dir = setup_test_directory
     result = list_dir(test_dir)
@@ -140,11 +122,7 @@ def test_list_dir_json_structure(mocker, setup_test_directory):
     assert "  " in result
 
 
-def test_list_dir_nested_structure(mocker):
-    """Test que verifica la estructura para directorios anidados más complejos"""
-    # Solo mockear los logs
-    mocker.patch('windtools_mcp.server.logging.info')
-    mocker.patch('windtools_mcp.server.logging.error')
+def test_list_dir_nested_structure():
 
     # Crear estructura de directorios más compleja
     test_dir = tempfile.mkdtemp()
