@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -5,7 +6,7 @@ import os.path
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from logging import INFO, basicConfig
-from typing import Any, AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 
@@ -29,57 +30,81 @@ SENTENCE_TRANSFORMER_CACHE_FOLDER = os.path.join(DATA_ROOT, "embedding_cache")
 # Server lifespan context for ChromaDB initialization and project directory
 @dataclass
 class ServerContext:
-    chroma_client: Any
-    code_collection: Any
-    embedding_model: str
+    chroma_client: Optional[Any] = None
+    code_collection: Optional[Any] = None
+    embedding_model: str = ""
+    is_initialized: bool = False
+    initialization_error: Optional[str] = None
+
+
+# Create a global context object
+ctx = ServerContext(embedding_model=SENTENCE_TRANSFORMER_PATH)
+
+
+async def initialize_resources():
+    """Initialize ChromaDB and embedding model in background"""
+    try:
+        logging.info(f"Initializing ChromaDB at {CHROMA_DB_PATH} and embedding model...")
+
+        # Ensure all data directories exist
+        os.makedirs(CHROMA_DB_PATH, exist_ok=True)
+        os.makedirs(SENTENCE_TRANSFORMER_CACHE_FOLDER, exist_ok=True)
+
+        # Import ChromaDB here to allow for dependency installation
+        import chromadb
+        from chromadb.utils import embedding_functions
+
+        chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
+
+        embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name=SENTENCE_TRANSFORMER_PATH,
+            cache_folder=SENTENCE_TRANSFORMER_CACHE_FOLDER,
+        )
+
+        # Create or get the code collection
+        try:
+            code_collection = chroma_client.get_collection(
+                name="code_collection", embedding_function=embedding_function
+            )
+            logging.info(
+                f"Using existing code collection with {code_collection.count()} documents"
+            )
+        except Exception as e:
+            logging.info(f"Collection not found, creating new one. Error: {str(e)}")
+            code_collection = chroma_client.create_collection(
+                name="code_collection", embedding_function=embedding_function
+            )
+            logging.info("Created new code collection")
+
+        # Update global context
+        ctx.chroma_client = chroma_client
+        ctx.code_collection = code_collection
+        ctx.is_initialized = True
+        logging.info("Background initialization completed successfully")
+    except Exception as e:
+        error_msg = f"Initialization failed: {str(e)}"
+        logging.error(error_msg)
+        ctx.initialization_error = error_msg
 
 
 @asynccontextmanager
 async def server_lifespan(server: FastMCP) -> AsyncIterator[ServerContext]:
-    """Initialize and clean up resources during server lifecycle"""
-    logging.info(f"Initializing ChromaDB at {CHROMA_DB_PATH} and embedding model...")
-
-    # Ensure all data directories exist
-    os.makedirs(CHROMA_DB_PATH, exist_ok=True)
-    os.makedirs(SENTENCE_TRANSFORMER_CACHE_FOLDER, exist_ok=True)
-
-    # Import ChromaDB here to allow for dependency installation
-    import chromadb
-    from chromadb.utils import embedding_functions
-
-    chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-
-    embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=SENTENCE_TRANSFORMER_PATH,
-        cache_folder=SENTENCE_TRANSFORMER_CACHE_FOLDER,
-    )
-
-    # Create or get the code collection
-    try:
-        code_collection = chroma_client.get_collection(
-            name="code_collection", embedding_function=embedding_function
-        )
-        logging.info(
-            f"Using existing code collection with {code_collection.count()} documents"
-        )
-    except Exception as e:
-        logging.info(f"Collection not found, creating new one. Error: {str(e)}")
-        code_collection = chroma_client.create_collection(
-            name="code_collection", embedding_function=embedding_function
-        )
-        logging.info("Created new code collection")
-
-    ctx = ServerContext(
-        chroma_client=chroma_client,
-        code_collection=code_collection,
-        embedding_model=SENTENCE_TRANSFORMER_PATH,
-    )
+    """Start initialization in background and continue server startup immediately"""
+    # Start initialization in background
+    init_task = asyncio.create_task(initialize_resources())
 
     try:
+        # Return control immediately with the global context
         yield ctx
     finally:
-        logging.info("Cleaning up ChromaDB resources...")
-        # ChromaDB client will be closed automatically when the process ends
+        logging.info("Waiting for initialization task to complete before shutdown...")
+        # Make sure the init task completes before server shuts down
+        if not init_task.done():
+            init_task.cancel()
+            try:
+                await init_task
+            except asyncio.CancelledError:
+                logging.info("Initialization task was cancelled")
 
 
 mcp = FastMCP(
@@ -144,6 +169,7 @@ def list_dir(directory_path: str) -> str:
     Returns:
         JSON string containing directory information
     """
+    # We don't need ChromaDB or embeddings for this function, so it works regardless of initialization
     try:
         logging.info(f"Listing directory: {directory_path}")
         directory_info = _get_directory_info(directory_path)
@@ -151,3 +177,18 @@ def list_dir(directory_path: str) -> str:
     except Exception as e:
         logging.error(f"Error listing directory {directory_path}: {str(e)}")
         return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def get_initialization_status() -> str:
+    """
+    Get the status of background initialization process
+
+    Returns:
+        JSON string with initialization status
+    """
+    status = {
+        "is_initialized": ctx.is_initialized,
+        "error": ctx.initialization_error
+    }
+    return json.dumps(status)
