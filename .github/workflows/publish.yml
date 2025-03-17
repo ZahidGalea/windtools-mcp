@@ -67,6 +67,8 @@ jobs:
           tag: "v${{ needs.check_version.outputs.version }}"
           message: "Release v${{ needs.check_version.outputs.version }}"
           force_push_tag: true
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
