@@ -6,8 +6,10 @@ sentence transformers.
 ## Features
 
 - **Semantic Code Search**: Uses sentence transformers for embedding code snippets and retrieval
+- **Code Repository Indexing**: Automatically indexes code files from specified directories
 - **Persistent Storage**: Saves code embeddings in ChromaDB for persistent retrieval
 - **Directory Exploration**: Built-in tools for navigating and exploring codebases
+- **Background Initialization**: Loads resources asynchronously to minimize startup time
 - **Environment Configuration**: Configurable through environment variables
 
 ## Tools
@@ -18,6 +20,25 @@ sentence transformers.
         - `directory_path` (string): Path to list contents of, should be absolute path to a directory
     - Returns: JSON string containing directory information including file types and sizes
 
+2. `get_initialization_status`
+    - Check the status of the background initialization process
+    - Returns: JSON string with initialization status of ChromaDB and embedding model
+
+3. `index_repository`
+    - Index code files from specified directories into ChromaDB
+    - Inputs:
+        - `target_directories` (array of strings): List of absolute paths to directories to index
+        - `force_reindex` (boolean, optional): If true, reindex all files even if they already exist in the index
+    - Returns: JSON string containing indexing statistics and results
+
+4. `codebase_search`
+    - Find code snippets relevant to a search query
+    - Inputs:
+        - `query` (string): Search query describing what you're looking for
+        - `limit` (integer, optional): Maximum number of results to return (default: 10)
+        - `min_relevance` (float, optional): Minimum relevance score threshold (0.0 to 1.0)
+    - Returns: JSON string containing search results with relevant code snippets
+
 ## Technical Architecture
 
 The WindTools MCP Server is built on these key components:
@@ -26,6 +47,12 @@ The WindTools MCP Server is built on these key components:
 - **Sentence Transformers**: Deep learning models for creating embeddings from code
 - **FastMCP**: Framework for building MCP-compliant servers
 - **Async Lifespan Management**: Efficient resource initialization and cleanup
+
+### Initialization Process
+
+The server initializes ChromaDB and the embedding model in the background, allowing it to start accepting requests
+immediately while resource loading continues in the background. The `get_initialization_status` tool can be used to
+check if the initialization is complete.
 
 ## Setup
 
@@ -84,8 +111,7 @@ Using Python 3.11 as ChromaDB has issues with newer Python versions.
 ```
 
 Data (including ChromaDB database and model cache) will be saved in the `/Users/<user>/windtools_data` directory and
-persist between
-container executions.
+persist between container executions.
 
 ## Development
 
@@ -96,17 +122,20 @@ container executions.
 
 ### Development Setup
 
-For developing
+For developing:
 
 ```bash
 # Install development dependencies
 uv sync --dev
 ```
 
-If you want to use locally
+If you want to use locally:
+
 ```bash
 pip install -e .
 ```
+
+Configuration for local development:
 
 ```json
 {
@@ -143,6 +172,9 @@ npx @modelcontextprotocol/inspector uv run windtools-mcp
 pytest tests/
 ```
 
+The project includes both unit tests and integration tests using pytest and pytest-asyncio for testing asynchronous
+functionality.
+
 ## Project Structure
 
 ```
@@ -153,10 +185,16 @@ src/
     server.py
 tests/
   test_client.py
+  test_unit.py
+.github/
+  workflows/
+    publish.yml
+    test.yml
 .gitignore
 .python-version
 pyproject.toml
 README.md
+VERSION
 ```
 
 ## Release Process
