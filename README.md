@@ -134,18 +134,18 @@ README.md
 
 ## Release Process
 
-La versión del proyecto se gestiona de forma centralizada en el archivo `VERSION`. El proceso de release es automático:
+The project version is managed centrally in the `VERSION` file. The release process is automatic:
 
-1. Actualizar el número de versión en el archivo `VERSION`
-2. Hacer commit y push a la rama `main`
-3. El flujo de trabajo de GitHub Actions automáticamente:
-    - Detectará el cambio en el archivo `VERSION`
-    - Creará un tag de git con el formato `v{VERSION}`
-    - Generará una release en GitHub
-    - Publicará el paquete en PyPI
+1. Update the version number in the `VERSION` file
+2. Commit and push to the `main` branch
+3. The GitHub Actions workflow will automatically:
+    - Detect the change in the `VERSION` file
+    - Create a git tag with the format `v{VERSION}`
+    - Generate a release on GitHub
+    - Publish the package to PyPI
 
-No es necesario crear manualmente tags o publicar en PyPI, todo se gestiona automáticamente cuando se actualiza el
-archivo `VERSION`.
+It is not necessary to manually create tags or publish to PyPI, everything is managed automatically when the `VERSION`
+file is updated.
 
 ## License
 
