@@ -35,6 +35,7 @@ dev-dependencies = [
     "freezegun>=1.5.1",
     "pyright>=1.1.389",
     "pytest>=8.3.3",
+    "pytest-mock>=3.14.0",
     "ruff>=0.8.1",
 ]
 
