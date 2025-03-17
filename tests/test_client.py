@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -27,6 +28,8 @@ async def test_tools_available():
             await session.initialize()
             # List available tools
             tools: types.ListToolsResult = await session.list_tools()
+            logging.info("Tools available: %s", tools)
+
             assert tools
             for tool in tools.tools:
                 if tool.name == "list_dir":
