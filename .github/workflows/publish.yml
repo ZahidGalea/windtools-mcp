@@ -51,16 +51,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v6
+      - name: Push tag
+        uses: rickstaa/action-create-tag@v1
         with:
+          tag: "v${{ needs.check_version.outputs.version }}"
+          message: "Release v${{ needs.check_version.outputs.version }}"
+          force_push_tag: true
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: Create and push tag manually
-        run: |
-          git tag -s "v${{ needs.check_version.outputs.version }}" -m "Release v${{ needs.check_version.outputs.version }}"
-          git push origin "v${{ needs.check_version.outputs.version }}"
+          gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
