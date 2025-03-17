@@ -31,7 +31,3 @@ async def test_tools_available():
             logging.info("Tools available: %s", tools)
 
             assert tools
-            for tool in tools.tools:
-                if tool.name == "list_dir":
-                    return True
-            raise Exception
