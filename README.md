@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/zahidgalea-windtools-mcp-badge.png)](https://mseep.ai/app/zahidgalea-windtools-mcp)
+
 # WindTools MCP Server
 
 MCP Server for the WindTools code assistant, providing document embedding and retrieval capabilities using ChromaDB and
